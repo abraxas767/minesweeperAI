@@ -2,7 +2,6 @@ import itertools
 import random
 import copy
 
-
 class Minesweeper():
     """
     Minesweeper game representation
@@ -87,7 +86,7 @@ class Minesweeper():
 
 class Sentence():
     """
-    Logical statement about a Minesweeper game
+    Logical sta
     A sentence consists of a set of board cells,
     and a count of the number of those cells which are mines.
     """
@@ -163,6 +162,8 @@ class MinesweeperAI():
         # List of sentences about the game known to be true
         self.knowledge = []
 
+        self.MINE_COUNT = 8
+
     def mark_mine(self, cell):
         """
         Marks a cell as a mine, and updates all knowledge
@@ -180,6 +181,13 @@ class MinesweeperAI():
         self.safes.add(cell)
         for sentence in self.knowledge:
             sentence.mark_safe(cell)
+
+    def remove_duplicates(self, duplicates):
+        final_list = []
+        for num in duplicates:
+            if num not in final_list:
+                final_list.append(num)
+        return final_list
 
     def add_knowledge(self, cell, count):
 
@@ -203,7 +211,23 @@ class MinesweeperAI():
 
         free_neighbours = [x for x in self.get_neighbouring_cells(cell) if x not in self.moves_made]
 
-        self.knowledge.append(Sentence(free_neighbours, count))
+        sentence = Sentence(free_neighbours, count)
+
+        spair_s = []
+        for key,knowledge in enumerate(self.knowledge):
+            if sentence.cells.issubset(knowledge.cells):
+                spair_s.append(knowledge - sentence)
+
+            elif sentence.cells.issuperset(knowledge.cells):
+                spair_s.append(sentence - knowledge)
+
+        for sp in spair_s:
+            if sp not in self.knowledge:
+                self.knowledge.append(sp)
+
+        self.knowledge.append(sentence)
+
+        self.knowledge = self.remove_duplicates(self.knowledge)
 
         c_knowledge = copy.deepcopy(self.knowledge)
 
@@ -220,24 +244,6 @@ class MinesweeperAI():
 
         self.knowledge = c_knowledge
 
-
-        print("\n\n\n\n")
-        print("------------------------------------------------------------------")
-
-        print("\nMove: ",cell)
-
-        print("Knowledge Base:")
-        for sentence in self.knowledge:
-            print(sentence)
-
-        print("\nConfirmed Safe:")
-        safe_and_possible = list(self.safes - self.moves_made)
-        print(safe_and_possible)
-
-        print("\nConfirmed Mines:")
-        print(self.mines)
-        print("------------------------------------------------------------------")
-
     def get_neighbouring_cells(self, cell):
         cells = []
         for x in range(cell[0] - 1, cell[0] + 2):
@@ -245,6 +251,7 @@ class MinesweeperAI():
                 if x not in range(0,8) or y not in range(0, 8): continue
                 if (x,y) != cell: cells.append( (x, y) )
         return cells
+
 
     def make_safe_move(self):
         """
@@ -268,13 +275,8 @@ class MinesweeperAI():
             1) have not already been chosen, and
             2) are not known to be mines
         """
-
-        all_cells = set()
-        for x in range(self.width):
-            for y in range(self.height):
-                all_cells.add((x, y))
-
+        all_cells = set((int(x / self.width), x % self.height) for x in range(self.width * self.height))
         possible = list(all_cells - self.moves_made - self.mines)
-        if possible:
+        if len(self.mines) < self.MINE_COUNT:
             return random.choice(possible)
         return None
